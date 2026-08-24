@@ -10,6 +10,7 @@ import {
 } from '../src/telegram/session-crypto.js';
 import { FakeTelegramUserTransport } from '../src/telegram/fake-transport.js';
 import { isAuthorizedTelegramAdmin, isFreshCallbackHash } from '../src/telegram/admin-bot.js';
+import { telegramHealthFromError } from '../src/telegram/mtcute-transport.js';
 
 describe('Telegram session protection', () => {
   const key = 'a sufficiently long local encryption key for tests';
@@ -45,6 +46,16 @@ describe('mock Telegram transport', () => {
     transport.failDestination('d', new Error('FLOOD_WAIT_3'));
     await expect(transport.sendText(destination, 'again')).rejects.toThrow('FLOOD_WAIT_3');
     expect(transport.sends).toHaveLength(1);
+  });
+});
+
+describe('Telegram account health', () => {
+  it('reports a missing encrypted session as a login requirement', () => {
+    const error = Object.assign(new Error('no such file or directory'), { code: 'ENOENT' });
+    expect(telegramHealthFromError(error)).toEqual({
+      state: 'AUTH_REQUIRED',
+      message: 'Telegram account login is required.',
+    });
   });
 });
 

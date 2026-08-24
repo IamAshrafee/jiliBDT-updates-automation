@@ -175,7 +175,7 @@ export function loadConfig(options: { envFile?: string; cwd?: string } = {}) {
     telegram: {
       apiId: parsed.TELEGRAM_API_ID,
       apiHash: parsed.TELEGRAM_API_HASH,
-      sessionEncryptionKey: parsed.TELEGRAM_SESSION_ENCRYPTION_KEY,
+      encryptionKey: parsed.TELEGRAM_SESSION_ENCRYPTION_KEY,
       sessionPath: resolve(cwd, parsed.TELEGRAM_SESSION_PATH),
       botToken: parsed.TELEGRAM_BOT_TOKEN,
       adminIds: parsed.TELEGRAM_ADMIN_IDS,
@@ -207,5 +207,5 @@ export const SECRET_LOG_REDACTION_PATHS = [
   '*.password',
   '*.phoneCode',
   '*.session',
-  '*.sessionEncryptionKey',
+  '*.encryptionKey',
 ];

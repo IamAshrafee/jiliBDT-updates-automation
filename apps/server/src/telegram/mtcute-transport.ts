@@ -1,5 +1,6 @@
 import { rm } from 'node:fs/promises';
 import { InputMedia, MemoryStorage, TelegramClient, type User } from '@mtcute/node';
+import type { AppConfig } from '@jilibdt/config';
 import type { RunRepository } from '@jilibdt/db';
 import { readEncryptedSession, writeEncryptedSession } from './session-crypto.js';
 import type {
@@ -17,12 +18,18 @@ function maskPhone(phone: string | null): string | undefined {
     : `${phone.slice(0, 3)}${'*'.repeat(Math.max(3, phone.length - 5))}${phone.slice(-2)}`;
 }
 
-function safeError(error: unknown): {
+export function telegramHealthFromError(error: unknown): {
   state: TelegramAccountHealth['state'];
   message: string;
   retryAt?: string;
 } {
   const raw = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+  if (/ENOENT|no such file|session file.*not found/i.test(raw)) {
+    return {
+      state: 'AUTH_REQUIRED',
+      message: 'Telegram account login is required.',
+    };
+  }
   const flood = /FLOOD_WAIT_?(\d+)/i.exec(raw);
   if (flood?.[1]) {
     const seconds = Number(flood[1]);
@@ -52,12 +59,10 @@ export class MtcuteTelegramTransport implements TelegramUserTransport {
   private challenge?: { phone: string; phoneCodeHash: string; client: TelegramClient };
 
   public constructor(
-    private readonly config: {
-      apiId?: number;
-      apiHash?: string;
-      sessionPath: string;
-      encryptionKey?: string;
-    },
+    private readonly config: Pick<
+      AppConfig['telegram'],
+      'apiId' | 'apiHash' | 'sessionPath' | 'encryptionKey'
+    >,
     private readonly repository: RunRepository,
   ) {}
 
@@ -172,7 +177,7 @@ export class MtcuteTelegramTransport implements TelegramUserTransport {
       const client = await this.connectedClient();
       return this.remember(await client.getMe());
     } catch (error) {
-      const health = safeError(error);
+      const health = telegramHealthFromError(error);
       this.repository.saveTelegramHealth({ status: health.state });
       return health;
     }

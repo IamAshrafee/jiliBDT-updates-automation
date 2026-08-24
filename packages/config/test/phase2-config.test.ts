@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { environmentSchema } from '../src/index.js';
+import { mkdir, rm, writeFile } from 'node:fs/promises';
+import { randomUUID } from 'node:crypto';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { environmentSchema, loadConfig } from '../src/index.js';
 
 const base = {
   DATABASE_URL: './data/app.db',
@@ -44,5 +48,31 @@ describe('Phase 2 configuration', () => {
         ADMIN_SESSION_SECRET: 'x'.repeat(32),
       }).success,
     ).toBe(true);
+  });
+
+  it('maps the Telegram session encryption key to the transport configuration', async () => {
+    const directory = join(tmpdir(), `jilibdt-config-${randomUUID()}`);
+    await mkdir(directory);
+    const envFile = join(directory, '.env');
+    await writeFile(
+      envFile,
+      Object.entries({
+        ...base,
+        TELEGRAM_API_ID: '123',
+        TELEGRAM_API_HASH: '1234567890abcdef',
+        TELEGRAM_SESSION_ENCRYPTION_KEY: 'x'.repeat(32),
+      })
+        .map(([key, value]) => `${key}=${value}`)
+        .join('\n'),
+    );
+    try {
+      expect(loadConfig({ cwd: directory, envFile }).telegram).toMatchObject({
+        apiId: 123,
+        apiHash: '1234567890abcdef',
+        encryptionKey: 'x'.repeat(32),
+      });
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
   });
 });
