@@ -50,6 +50,16 @@ export const environmentSchema = z
     UPDATE_3_RANGE: a1Range,
     TIMEZONE: z.string().default('Asia/Dhaka'),
     ARTIFACTS_DIR: z.string().min(1).default('./artifacts'),
+    BACKUPS_DIR: z.string().min(1).default('./backups'),
+    BACKUP_RETENTION_DAYS: z.coerce.number().int().min(1).max(365).default(14),
+    BACKUP_LOCAL_TIME: z
+      .string()
+      .regex(/^([01]\d|2[0-3]):[0-5]\d$/)
+      .default('02:00'),
+    DISK_WARNING_FREE_MB: z.coerce.number().int().min(100).default(2048),
+    DISK_CRITICAL_FREE_MB: z.coerce.number().int().min(50).default(512),
+    BROWSER_CAPTURE_PROFILE_DIR: z.string().min(1).default('./data/browser-profile'),
+    BROWSER_CAPTURE_HEADLESS: z.coerce.boolean().default(true),
     HOST: z.string().default('127.0.0.1'),
     PORT: z.coerce.number().int().min(1).max(65535).default(4100),
     ADMIN_API_TOKEN: z.string().min(24).optional(),
@@ -82,6 +92,13 @@ export const environmentSchema = z
     COMPLETION_ALLOWED_MEMBER_STATUSES: csv.default(['PERMANENT']),
   })
   .superRefine((value, context) => {
+    if (value.DISK_CRITICAL_FREE_MB >= value.DISK_WARNING_FREE_MB) {
+      context.addIssue({
+        code: 'custom',
+        path: ['DISK_CRITICAL_FREE_MB'],
+        message: 'Critical disk threshold must be below the warning threshold.',
+      });
+    }
     if (
       value.NODE_ENV === 'production' &&
       (!value.ADMIN_PASSWORD_HASH || !value.ADMIN_SESSION_SECRET)
@@ -131,6 +148,19 @@ export function loadConfig(options: { envFile?: string; cwd?: string } = {}) {
     },
     timezone: parsed.TIMEZONE,
     artifactsDir: resolve(cwd, parsed.ARTIFACTS_DIR),
+    backups: {
+      dir: resolve(cwd, parsed.BACKUPS_DIR),
+      retentionDays: parsed.BACKUP_RETENTION_DAYS,
+      localTime: parsed.BACKUP_LOCAL_TIME,
+    },
+    disk: {
+      warningFreeMb: parsed.DISK_WARNING_FREE_MB,
+      criticalFreeMb: parsed.DISK_CRITICAL_FREE_MB,
+    },
+    browserCapture: {
+      profileDir: resolve(cwd, parsed.BROWSER_CAPTURE_PROFILE_DIR),
+      headless: parsed.BROWSER_CAPTURE_HEADLESS,
+    },
     teamName: parsed.TEAM_NAME,
     server: {
       host: parsed.HOST,

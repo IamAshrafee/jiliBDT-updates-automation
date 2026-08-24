@@ -49,10 +49,15 @@ export class PersistentScheduler {
     this.timer = undefined;
   }
 
+  status(): { running: boolean; ticking: boolean } {
+    return { running: Boolean(this.timer), ticking: this.ticking };
+  }
+
   async tick(now = new Date()): Promise<void> {
     if (this.ticking) return;
     this.ticking = true;
     try {
+      if (!this.options.repository.getSettings()?.automationEnabled) return;
       for (const schedule of this.options.repository.listSchedules()) {
         if (!schedule.enabled) continue;
         const local = localParts(schedule.timezone, now);

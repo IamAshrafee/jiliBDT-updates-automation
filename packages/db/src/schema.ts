@@ -33,6 +33,13 @@ export const systemSettings = sqliteTable('system_settings', {
   maxReminderStages: integer('max_reminder_stages').notNull().default(2),
   approvalPolicy: text('approval_policy').notNull().default('MANUAL_ALL'),
   artifactRetentionDays: integer('artifact_retention_days').notNull().default(90),
+  automationEnabled: integer('automation_enabled', { mode: 'boolean' }).notNull().default(true),
+  telegramSendingEnabled: integer('telegram_sending_enabled', { mode: 'boolean' })
+    .notNull()
+    .default(true),
+  lastGoogleFetchAt: integer('last_google_fetch_at', { mode: 'timestamp_ms' }),
+  lastBackupAt: integer('last_backup_at', { mode: 'timestamp_ms' }),
+  lastBackupPath: text('last_backup_path'),
   telegramAccountStatus: text('telegram_account_status').notNull().default('AUTH_REQUIRED'),
   telegramUserId: text('telegram_user_id'),
   telegramDisplayName: text('telegram_display_name'),
@@ -101,6 +108,8 @@ export const updateRuns = sqliteTable(
     snapshotArtifactPath: text('snapshot_artifact_path'),
     snapshotHash: text('snapshot_hash'),
     artifactHash: text('artifact_hash'),
+    captureMode: text('capture_mode').notNull().default('HTML'),
+    renderSupport: text('render_support').notNull().default('SUPPORTED'),
     approvedSnapshotHash: text('approved_snapshot_hash'),
     approvedArtifactHash: text('approved_artifact_hash'),
     approvedCaptionHash: text('approved_caption_hash'),

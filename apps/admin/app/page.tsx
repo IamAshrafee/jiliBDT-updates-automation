@@ -40,6 +40,8 @@ interface Run {
   nextActionAt?: string;
   snapshotHash?: string;
   artifactHash?: string;
+  captureMode?: string;
+  renderSupport?: string;
   approvalPayloadHash?: string;
   failureCode?: string;
   failureReason?: string;
@@ -538,11 +540,26 @@ export default function AdminPortal() {
         />
       )}
       {view === 'settings' && (
-        <section className="panel">
-          <h2>Settings summary</h2>
-          <pre>{JSON.stringify(settings, null, 2)}</pre>
-          <button onClick={() => void refreshData()}>Refresh all</button>
-        </section>
+        <SettingsView
+          settings={settings}
+          busy={busy}
+          setControl={(patch) =>
+            act('Emergency control updated.', async () => {
+              await request('/api/settings/controls', {
+                method: 'PUT',
+                body: JSON.stringify(patch),
+              });
+              await refreshData();
+            })
+          }
+          backup={() =>
+            act('Safe SQLite backup created.', async () => {
+              await request('/api/maintenance/backup', { method: 'POST', body: '{}' });
+              await refreshData();
+            })
+          }
+          refresh={refreshData}
+        />
       )}
     </main>
   );
@@ -564,6 +581,14 @@ function Dashboard({
   openRun: (id: string) => void;
 }) {
   const today = textValue(dashboard?.date, 'Today');
+  const system = dashboard?.system as
+    | {
+        database?: { integrity?: string };
+        scheduler?: { running?: boolean };
+        disk?: { status?: string; freeMb?: number };
+        backup?: { lastBackupAt?: string };
+      }
+    | undefined;
   return (
     <>
       <section className="health-grid">
@@ -594,6 +619,24 @@ function Dashboard({
                 : 'Not connected',
             )}
           </strong>
+        </article>
+        <article className="panel">
+          <span>Database</span>
+          <strong>{system?.database?.integrity === 'ok' ? 'Healthy' : 'Needs attention'}</strong>
+        </article>
+        <article className="panel">
+          <span>Scheduler</span>
+          <strong>{system?.scheduler?.running ? 'Running' : 'Stopped'}</strong>
+        </article>
+        <article className="panel">
+          <span>Disk</span>
+          <strong>
+            {system?.disk?.status ?? 'Unknown'} · {system?.disk?.freeMb ?? '—'} MB free
+          </strong>
+        </article>
+        <article className="panel">
+          <span>Last Backup</span>
+          <strong>{system?.backup?.lastBackupAt ?? 'Not created yet'}</strong>
         </article>
       </section>
       <section>
@@ -645,6 +688,77 @@ function Dashboard({
   );
 }
 
+function SettingsView({
+  settings,
+  busy,
+  setControl,
+  backup,
+  refresh,
+}: {
+  settings?: Record<string, unknown>;
+  busy: boolean;
+  setControl: (patch: {
+    automationEnabled?: boolean;
+    telegramSendingEnabled?: boolean;
+  }) => Promise<void>;
+  backup: () => Promise<void>;
+  refresh: () => Promise<void>;
+}) {
+  const controls = settings?.controls as
+    { automationEnabled?: boolean; telegramSendingEnabled?: boolean } | undefined;
+  const automationEnabled = controls?.automationEnabled ?? true;
+  const telegramSendingEnabled = controls?.telegramSendingEnabled ?? true;
+  return (
+    <>
+      <section className="panel">
+        <p className="eyebrow">EMERGENCY CONTROLS</p>
+        <h2>Operational safety</h2>
+        <p>
+          Automation: <strong>{automationEnabled ? 'Running' : 'Paused'}</strong>
+        </p>
+        <p>
+          Telegram sending: <strong>{telegramSendingEnabled ? 'Enabled' : 'Disabled'}</strong>
+        </p>
+        <div className="button-row">
+          <button
+            disabled={busy}
+            className={automationEnabled ? 'danger' : undefined}
+            onClick={() => void setControl({ automationEnabled: !automationEnabled })}
+          >
+            {automationEnabled ? 'Pause Automation' : 'Resume Automation'}
+          </button>
+          <button
+            disabled={busy}
+            className={telegramSendingEnabled ? 'danger' : undefined}
+            onClick={() => void setControl({ telegramSendingEnabled: !telegramSendingEnabled })}
+          >
+            {telegramSendingEnabled ? 'Disable Telegram Sending' : 'Enable Telegram Sending'}
+          </button>
+        </div>
+        <p className="subtle">
+          Pausing leaves current runs and previews available for manual inspection.
+        </p>
+      </section>
+      <section className="panel">
+        <h2>Maintenance</h2>
+        <p>Last database backup: {textValue(settings?.lastBackupAt, 'Not created yet')}</p>
+        <div className="button-row">
+          <button disabled={busy} onClick={() => void backup()}>
+            Create Backup Now
+          </button>
+          <button className="secondary" disabled={busy} onClick={() => void refresh()}>
+            Refresh Status
+          </button>
+        </div>
+      </section>
+      <section className="panel">
+        <h2>Settings summary</h2>
+        <pre>{JSON.stringify(settings, null, 2)}</pre>
+      </section>
+    </>
+  );
+}
+
 function RunView({
   detail,
   runs,
@@ -687,6 +801,10 @@ function RunView({
           <p>
             Preview: <b>{run.previewState}</b> · Last checked: {formatDate(run.lastCheckedAt)}
           </p>
+          <p>
+            Renderer: <b>{run.renderSupport ?? 'SUPPORTED'}</b> · Capture:{' '}
+            <b>{run.captureMode ?? 'HTML'}</b>
+          </p>
           {run.failureReason && (
             <p className="error-text">
               {run.failureCode}: {run.failureReason}
@@ -700,6 +818,11 @@ function RunView({
           <button disabled={busy || !run.snapshotHash} onClick={() => void action('revalidate')}>
             Revalidate
           </button>
+          {run.renderSupport === 'BROWSER_FALLBACK_RECOMMENDED' && (
+            <button disabled={busy} onClick={() => void action('browser-capture')}>
+              Generate Browser Capture
+            </button>
+          )}
           {run.status === 'NEEDS_ATTENTION' &&
             detail.reminder &&
             ['FAILED', 'PARTIAL'].includes(detail.reminder.status) && (

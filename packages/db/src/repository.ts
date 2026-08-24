@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { and, asc, desc, eq, inArray, isNotNull, isNull, lt, lte, or, sql } from 'drizzle-orm';
 import {
+  assessRenderSupport,
   assertRunTransition,
   TERMINAL_RUN_STATUSES,
   type PreparedRunResult,
@@ -73,6 +74,34 @@ export class RunRepository {
 
   getSettings() {
     return this.db.select().from(systemSettings).where(eq(systemSettings.id, 1)).get();
+  }
+
+  updateOperationalControls(input: {
+    automationEnabled?: boolean;
+    telegramSendingEnabled?: boolean;
+  }) {
+    return this.db
+      .update(systemSettings)
+      .set({ ...input, updatedAt: new Date() })
+      .where(eq(systemSettings.id, 1))
+      .returning()
+      .get();
+  }
+
+  recordGoogleFetch(at: Date): void {
+    this.db
+      .update(systemSettings)
+      .set({ lastGoogleFetchAt: at, updatedAt: new Date() })
+      .where(eq(systemSettings.id, 1))
+      .run();
+  }
+
+  recordBackup(path: string, at: Date): void {
+    this.db
+      .update(systemSettings)
+      .set({ lastBackupPath: path, lastBackupAt: at, updatedAt: new Date() })
+      .where(eq(systemSettings.id, 1))
+      .run();
   }
 
   updateTemplates(input: {
@@ -239,6 +268,33 @@ export class RunRepository {
     });
   }
 
+  saveBrowserCapture(
+    id: string,
+    path: string,
+    artifactHash: string,
+    caption: string,
+    destinationIds: string[],
+  ): UpdateRunRecord {
+    return this.transition(
+      id,
+      'READY_FOR_REVIEW',
+      'BROWSER_CAPTURE_GENERATED',
+      'Administrator-requested browser capture generated for review.',
+      {
+        screenshotArtifactPath: path,
+        artifactHash,
+        captureMode: 'BROWSER',
+        renderSupport: 'BROWSER_FALLBACK_RECOMMENDED',
+        previewState: 'CURRENT',
+        caption,
+        destinationIds,
+        approvedSnapshotHash: null,
+        approvedArtifactHash: null,
+        approvalPayloadHash: null,
+      },
+    );
+  }
+
   transition(
     id: string,
     status: RunStatus,
@@ -305,6 +361,8 @@ export class RunRepository {
         lastCheckedAt: fetchedAt,
         snapshotHash: result.snapshotHash,
         artifactHash: result.artifactHash ?? null,
+        captureMode: 'HTML',
+        renderSupport: assessRenderSupport(result.warnings),
         snapshotArtifactPath: result.snapshotPath,
         htmlArtifactPath: result.htmlPath ?? null,
         screenshotArtifactPath: result.screenshotPath ?? null,
@@ -326,6 +384,7 @@ export class RunRepository {
         failureReason: null,
       },
     );
+    this.recordGoogleFetch(fetchedAt);
   }
 
   setAttention(id: string, code: string, reason: string): UpdateRunRecord {
@@ -912,6 +971,52 @@ export class RunRepository {
       .where(eq(telegramDeliveries.runId, runId))
       .orderBy(telegramDeliveries.createdAt)
       .all();
+  }
+
+  reconcileInterruptedDeliveries(): { deliveries: number; runs: number } {
+    return this.db.transaction((tx) => {
+      const interrupted = tx
+        .select()
+        .from(telegramDeliveries)
+        .where(eq(telegramDeliveries.status, 'SENDING'))
+        .all();
+      if (interrupted.length === 0) return { deliveries: 0, runs: 0 };
+      tx.update(telegramDeliveries)
+        .set({
+          status: 'UNKNOWN',
+          lastError: 'Application stopped while Telegram send outcome was unresolved.',
+          updatedAt: new Date(),
+        })
+        .where(eq(telegramDeliveries.status, 'SENDING'))
+        .run();
+      const runIds = [...new Set(interrupted.map(({ runId }) => runId))];
+      for (const runId of runIds) {
+        tx.update(updateRuns)
+          .set({
+            status: 'NEEDS_ATTENTION',
+            failureCode: 'DELIVERY_UNKNOWN',
+            failureReason:
+              'A Telegram delivery was in progress when the application stopped. Reconcile it before retrying.',
+            updatedAt: new Date(),
+          })
+          .where(
+            and(
+              eq(updateRuns.id, runId),
+              inArray(updateRuns.status, ['REMINDER_SENDING', 'ESCALATION_SENDING', 'SENDING']),
+            ),
+          )
+          .run();
+        tx.insert(runEvents)
+          .values({
+            runId,
+            eventType: 'DELIVERY_OUTCOME_UNKNOWN',
+            message:
+              'Startup recovery found an interrupted Telegram send. Automatic resend is blocked.',
+          })
+          .run();
+      }
+      return { deliveries: interrupted.length, runs: runIds.length };
+    });
   }
 
   isTerminal(status: RunStatus): boolean {

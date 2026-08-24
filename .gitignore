@@ -9,13 +9,16 @@ data/*.db
 data/*.db-shm
 data/*.db-wal
 data/*.enc
+data/browser-profile/
 
 # Telegram/session material reserved for later phases
 *.session
 *.session-journal
 
 # Generated output
-artifacts/
+/artifacts/
+/backups/
+/logs/
 node_modules/
 .next/
 dist/

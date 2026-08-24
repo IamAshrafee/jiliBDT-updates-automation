@@ -7,7 +7,13 @@ import Fastify from 'fastify';
 import pino from 'pino';
 import { z } from 'zod';
 import { loadConfig, SECRET_LOG_REDACTION_PATHS, type AppConfig } from '@jilibdt/config';
-import { createDatabase, migrateDatabase, RunRepository } from '@jilibdt/db';
+import {
+  checkDatabase,
+  createDatabase,
+  createSqliteBackup,
+  migrateDatabase,
+  RunRepository,
+} from '@jilibdt/db';
 import { createGoogleOAuthClient, GoogleSheetReader } from '@jilibdt/google-sheet';
 import { AdminAuthService, isSafeMutationOrigin } from './auth/admin-auth.js';
 import { registerApiRoutes } from './routes/api.js';
@@ -16,6 +22,9 @@ import { AdminTelegramBot } from './telegram/admin-bot.js';
 import { MtcuteTelegramTransport } from './telegram/mtcute-transport.js';
 import { TelegramBotNotifierBridge } from './telegram/transport.js';
 import { Phase2WorkflowService } from './workflow/workflow-service.js';
+import { generateBrowserFallback } from './operations/browser-fallback.js';
+import { checkDiskHealth } from './operations/disk-health.js';
+import { MaintenanceScheduler } from './operations/maintenance-scheduler.js';
 
 export async function buildApp(config?: AppConfig) {
   const projectRoot = resolve(import.meta.dirname, '../../..');
@@ -33,6 +42,7 @@ export async function buildApp(config?: AppConfig) {
     redact: { paths: SECRET_LOG_REDACTION_PATHS, censor: '[REDACTED]' },
   });
   const app = Fastify({ loggerInstance: logger });
+  let shuttingDown = false;
   await app.register(cookie);
   await app.register(cors, {
     origin: resolvedConfig.server.adminUiOrigin,
@@ -56,6 +66,10 @@ export async function buildApp(config?: AppConfig) {
     maxReminderStages: resolvedConfig.scheduler.maxReminderStages,
     artifactRetentionDays: resolvedConfig.artifactRetentionDays,
   });
+  const recovered = repository.reconcileInterruptedDeliveries();
+  if (recovered.deliveries > 0) {
+    logger.warn(recovered, 'Interrupted Telegram deliveries require administrator reconciliation');
+  }
 
   let readerPromise: Promise<GoogleSheetReader> | undefined;
   const getReader = () => {
@@ -86,6 +100,7 @@ export async function buildApp(config?: AppConfig) {
     artifactsDir: resolvedConfig.artifactsDir,
     completionPolicy: resolvedConfig.completionPolicy,
     logger,
+    diskHealth: () => checkDiskHealth(resolvedConfig.artifactsDir, resolvedConfig.disk),
   });
   const bot = new AdminTelegramBot({
     token: resolvedConfig.telegram.botToken,
@@ -116,17 +131,70 @@ export async function buildApp(config?: AppConfig) {
     ranges: resolvedConfig.google.ranges,
     logger,
   });
+  const maintenance = new MaintenanceScheduler({
+    sqlite: database.sqlite,
+    repository,
+    backupsDir: resolvedConfig.backups.dir,
+    backupRetentionDays: resolvedConfig.backups.retentionDays,
+    backupLocalTime: resolvedConfig.backups.localTime,
+    artifactsDir: resolvedConfig.artifactsDir,
+    artifactRetentionDays: resolvedConfig.artifactRetentionDays,
+    timezone: resolvedConfig.timezone,
+    logger,
+  });
+
+  const systemHealth = async () => {
+    const databaseHealth = checkDatabase(database.sqlite);
+    const [google, telegramHealth, botHealth, disk] = await Promise.all([
+      getReader()
+        .then((reader) => reader.health())
+        .catch(() => ({ healthy: false, message: 'Google authentication needs attention.' })),
+      telegram.health(),
+      bot.health(),
+      checkDiskHealth(resolvedConfig.artifactsDir, resolvedConfig.disk).catch(() => ({
+        status: 'CRITICAL' as const,
+        freeBytes: 0,
+        freeMb: 0,
+        message: 'Disk health could not be measured.',
+      })),
+    ]);
+    const settings = repository.getSettings();
+    const actionRequired =
+      !databaseHealth.accessible || databaseHealth.integrity !== 'ok' || disk.status === 'CRITICAL';
+    const degraded =
+      !google.healthy || telegramHealth.state !== 'CONNECTED' || !botHealth.connected;
+    return {
+      status: actionRequired ? 'ACTION_REQUIRED' : degraded ? 'DEGRADED' : 'OK',
+      application: { status: 'OK', phase: 3 },
+      database: databaseHealth,
+      google: { ...google, lastSuccessfulFetchAt: settings?.lastGoogleFetchAt },
+      telegram: telegramHealth,
+      bot: botHealth,
+      scheduler: scheduler.status(),
+      disk,
+      backup: {
+        running: maintenance.status().running,
+        lastBackupAt: settings?.lastBackupAt,
+        lastError: maintenance.status().lastError,
+      },
+      controls: {
+        automationEnabled: settings?.automationEnabled ?? true,
+        telegramSendingEnabled: settings?.telegramSendingEnabled ?? true,
+      },
+      serverTime: new Date().toISOString(),
+      configuredTimezone: resolvedConfig.timezone,
+    };
+  };
 
   app.get('/health', async (_request, reply) => {
-    try {
-      database.sqlite.prepare('select 1').get();
-      return { status: 'ok', database: 'ok', phase: 2 };
-    } catch {
-      return reply.code(503).send({ status: 'degraded', database: 'unavailable', phase: 2 });
-    }
+    const health = await systemHealth();
+    return reply.code(health.status === 'ACTION_REQUIRED' ? 503 : 200).send(health);
   });
 
   app.addHook('preHandler', async (request, reply) => {
+    if (shuttingDown && request.url.startsWith('/api/')) {
+      return reply.code(503).send({ error: 'Application shutdown is in progress.' });
+    }
     if (!request.url.startsWith('/api/')) return;
     if (request.url.startsWith('/api/auth/login') || request.url.startsWith('/api/auth/session'))
       return;
@@ -153,6 +221,23 @@ export async function buildApp(config?: AppConfig) {
     telegram,
     bot,
     reader: getReader,
+    systemHealth,
+    browserCapture: (runId) =>
+      generateBrowserFallback({
+        runId,
+        repository,
+        artifactsDir: resolvedConfig.artifactsDir,
+        profileDir: resolvedConfig.browserCapture.profileDir,
+        headless: resolvedConfig.browserCapture.headless,
+      }),
+    backupNow: async () => {
+      const backup = await createSqliteBackup({
+        sqlite: database.sqlite,
+        backupsDir: resolvedConfig.backups.dir,
+      });
+      repository.recordBackup(backup.path, new Date());
+      return { bytes: backup.bytes, created: true };
+    },
   });
 
   app.setErrorHandler((error, _request, reply) => {
@@ -180,6 +265,7 @@ export async function buildApp(config?: AppConfig) {
   });
 
   scheduler.start();
+  maintenance.start();
   bot.start();
 
   return {
@@ -187,11 +273,15 @@ export async function buildApp(config?: AppConfig) {
     repository,
     workflow,
     scheduler,
+    maintenance,
     close: async () => {
+      shuttingDown = true;
       scheduler.stop();
+      maintenance.stop();
       await bot.stop();
-      await telegram.close();
       await app.close();
+      await workflow.shutdown();
+      await telegram.close();
       database.sqlite.close();
     },
   };

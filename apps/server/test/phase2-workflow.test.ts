@@ -171,6 +171,28 @@ describe('Phase 2 operational workflow with mocked Telegram', () => {
     expect(telegram.sends.filter(({ kind }) => kind === 'PHOTO')).toHaveLength(1);
   });
 
+  it('blocks final delivery when the administrator disables Telegram sending', async () => {
+    currentSnapshot = completeSnapshot();
+    destination();
+    const run = await prepare();
+    repository.updateOperationalControls({ telegramSendingEnabled: false });
+    expect((await workflow.approveAndSendFinal(run.id)).failureCode).toBe(
+      'TELEGRAM_SENDING_DISABLED',
+    );
+    expect(telegram.sends).toHaveLength(0);
+  });
+
+  it('invalidates reminder approval when a caller completes immediately before send', async () => {
+    mapCaller();
+    destination();
+    const run = await prepare();
+    currentSnapshot = completeSnapshot();
+    const refreshed = await workflow.approveReminder(run.id);
+    expect(refreshed.status).toBe('READY_FOR_REVIEW');
+    expect(telegram.sends).toHaveLength(0);
+    expect(repository.getLatestReminder(run.id)?.status).toBe('INVALIDATED');
+  });
+
   it('scenario C: formatting-only Sheet change invalidates final approval and regenerates', async () => {
     currentSnapshot = completeSnapshot();
     destination();

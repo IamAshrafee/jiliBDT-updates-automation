@@ -62,6 +62,16 @@ const telegramCodeSchema = z.object({ code: z.string().min(3).max(20) });
 const telegramPasswordSchema = z.object({ password: z.string().min(1).max(256) });
 const reminderEditSchema = z.object({ message: z.string().min(1).max(4000) });
 const overrideSchema = z.object({ reason: z.string().min(4).max(1000) });
+const controlsSchema = z
+  .object({
+    automationEnabled: z.boolean().optional(),
+    telegramSendingEnabled: z.boolean().optional(),
+  })
+  .refine(
+    ({ automationEnabled, telegramSendingEnabled }) =>
+      automationEnabled !== undefined || telegramSendingEnabled !== undefined,
+    'At least one control must be provided.',
+  );
 
 function isWithin(root: string, candidate: string): boolean {
   const path = relative(root, candidate);
@@ -92,6 +102,9 @@ export function registerApiRoutes(
     telegram: MtcuteTelegramTransport;
     bot: AdminTelegramBot;
     reader: () => Promise<GoogleSheetReader>;
+    systemHealth: () => Promise<Record<string, unknown>>;
+    browserCapture: (runId: string) => Promise<unknown>;
+    backupNow: () => Promise<{ bytes: number; created: boolean }>;
   },
 ): void {
   const { config, repository, auth, workflow, telegram, bot } = dependencies;
@@ -127,19 +140,13 @@ export function registerApiRoutes(
 
   app.get('/api/dashboard', async () => {
     const date = dateInTimezone(config.timezone);
-    const [sheet, telegramHealth, botHealth] = await Promise.all([
-      dependencies
-        .reader()
-        .then((reader) => reader.health())
-        .catch(() => ({ healthy: false, message: 'Google Sheet unavailable.' })),
-      telegram.health(),
-      bot.health(),
-    ]);
+    const system = await dependencies.systemHealth();
     return {
       date,
-      sheet,
-      telegram: telegramHealth,
-      bot: botHealth,
+      sheet: system.google,
+      telegram: system.telegram,
+      bot: system.bot,
+      system,
       runs: repository.listRunsForDate(date),
       schedules: repository.listSchedules(),
     };
@@ -155,6 +162,12 @@ export function registerApiRoutes(
         .send({ healthy: false, message: 'Google OAuth or Sheet access needs attention.' });
     }
   });
+
+  app.get('/api/system/health', () => dependencies.systemHealth());
+  app.put('/api/settings/controls', (request) => ({
+    controls: repository.updateOperationalControls(controlsSchema.parse(request.body)),
+  }));
+  app.post('/api/maintenance/backup', async () => ({ backup: await dependencies.backupNow() }));
 
   app.get('/api/members', () => ({ members: repository.listMembers() }));
   app.post('/api/members/sync', async () => workflow.syncMembers());
@@ -344,6 +357,13 @@ export function registerApiRoutes(
       return conflict(reply, error);
     }
   });
+  app.post('/api/runs/:id/browser-capture', async (request, reply) => {
+    try {
+      return { run: await dependencies.browserCapture(runIdParamsSchema.parse(request.params).id) };
+    } catch (error) {
+      return conflict(reply, error);
+    }
+  });
   app.post('/api/runs/:id/needs-attention', (request, reply) => {
     try {
       return {
@@ -385,6 +405,11 @@ export function registerApiRoutes(
         ranges: [settings?.update1Range, settings?.update2Range, settings?.update3Range],
       },
       hashes: { settings: hashApprovalPayload(settings?.updatedAt?.toISOString() ?? '') },
+      controls: {
+        automationEnabled: settings?.automationEnabled ?? true,
+        telegramSendingEnabled: settings?.telegramSendingEnabled ?? true,
+      },
+      lastBackupAt: settings?.lastBackupAt,
     };
   });
 }

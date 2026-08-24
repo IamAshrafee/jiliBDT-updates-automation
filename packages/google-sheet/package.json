@@ -14,13 +14,13 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@google-cloud/local-auth": "^3.0.1",
     "@jilibdt/config": "workspace:*",
     "@jilibdt/domain": "workspace:*",
     "googleapis": "^176.0.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@google-cloud/local-auth": "^3.0.1",
     "@types/node": "^24.10.1",
     "tsup": "^8.5.1",
     "tsx": "^4.20.6",

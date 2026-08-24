@@ -1,6 +1,6 @@
 # JiliBDT Updates Automation
 
-Phase 2 is a deliberately simple, single-process operations tool. Its backend reads and validates the live Google Sheet, detects missing callers, prepares administrator-approved Telegram reminders, rechecks persistently, renders a final immutable report, invalidates stale approvals, and sends only after a fresh Sheet revalidation. State and audit history live in one local SQLite file.
+Phase 3 keeps the deliberately simple Phase 2 architecture and hardens it for operations. Its backend reads and validates the Google Sheet, detects missing callers, prepares administrator-approved Telegram reminders, rechecks persistently, renders a final immutable report, invalidates stale approvals, and sends only after fresh Sheet revalidation. State and audit history live in one local SQLite file, with online backup, integrity checking, disk safety, kill switches, graceful shutdown, and ambiguous-send recovery.
 
 ## Requirements
 
@@ -56,6 +56,9 @@ pnpm test
 pnpm build
 pnpm fixture:render
 pnpm artifacts:cleanup
+pnpm db:check
+pnpm db:backup
+pnpm db:restore-drill
 ```
 
 `pnpm db:migrate` remains available for explicit migration checks. The SQLite file, OAuth files, and generated artifacts are ignored by Git.
@@ -73,5 +76,9 @@ pnpm artifacts:cleanup
 - Final approval binds the source snapshot, PNG, caption, and destinations; it always re-fetches before sending.
 - SQLite-backed delivery keys prevent duplicate sends, including partial multi-destination retries.
 - Scheduled and delayed actions are persisted and leased from SQLite, so restart recovery does not depend on timers.
+- Interrupted Telegram sends become `UNKNOWN` on restart and are never blindly resent.
+- Automation and Telegram sending have independent persistent emergency switches.
+- Daily SQLite backups use the online backup API and are verified before publication.
+- Critical disk state blocks new artifacts and external sends.
 
-See [Phase 2 architecture](docs/phase-2-architecture.md), [run states](docs/run-state-machine.md), [Telegram account](docs/telegram-user-account.md), [administrator bot](docs/telegram-bot.md), [reminders](docs/reminder-workflow.md), [scheduler](docs/scheduler.md), [approval safety](docs/approval-and-idempotency.md), and [testing](docs/phase-2-testing.md).
+See [Phase 3 hardening](docs/phase-3-architecture.md), [Phase 3 acceptance](docs/phase-3-testing.md), [VPS deployment](docs/vps-deployment.md), [recovery](docs/recovery.md), [operator checklist](docs/operator-checklist.md), [run states](docs/run-state-machine.md), and [approval safety](docs/approval-and-idempotency.md).

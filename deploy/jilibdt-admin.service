@@ -1,0 +1,22 @@
+[Unit]
+Description=JiliBDT administrator portal
+After=network-online.target jilibdt-updates.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=jilibdt
+Group=jilibdt
+WorkingDirectory=/opt/jilibdt-updates/app
+EnvironmentFile=/opt/jilibdt-updates/secrets/app.env
+ExecStart=/usr/local/bin/pnpm --filter @jilibdt/admin start
+Restart=on-failure
+RestartSec=10
+TimeoutStopSec=30
+KillSignal=SIGTERM
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+
+[Install]
+WantedBy=multi-user.target

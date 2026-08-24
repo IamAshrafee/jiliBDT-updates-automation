@@ -15,6 +15,13 @@
       "when": 1787562000000,
       "tag": "0001_phase_2_workflow",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1787594400000,
+      "tag": "0002_phase_3_operations",
+      "breakpoints": true
     }
   ]
 }

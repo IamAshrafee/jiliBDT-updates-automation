@@ -40,6 +40,7 @@ interface WorkflowOptions {
   logger: Logger;
   persistSnapshot?: typeof persistSnapshotArtifact;
   renderArtifacts?: typeof renderSnapshotArtifacts;
+  diskHealth?: () => Promise<{ status: 'OK' | 'WARNING' | 'CRITICAL'; message: string }>;
 }
 
 const slotMeta: Record<UpdateSlot, { number: string; name: string }> = {
@@ -153,6 +154,10 @@ export class Phase2WorkflowService {
 
   async waitForIdle(runId: string): Promise<void> {
     await this.inflight.get(runId);
+  }
+
+  async shutdown(): Promise<void> {
+    await Promise.allSettled([...this.inflight.values()]);
   }
 
   resume(runId: string): void {
@@ -298,6 +303,20 @@ export class Phase2WorkflowService {
 
   async approveReminder(runId: string): Promise<UpdateRunRecord> {
     const run = this.requiredRun(runId);
+    if (!this.options.repository.getSettings()?.telegramSendingEnabled) {
+      return this.options.repository.setAttention(
+        runId,
+        'TELEGRAM_SENDING_DISABLED',
+        'Telegram sending is disabled by the administrator kill switch.',
+      );
+    }
+    if ((await this.options.diskHealth?.())?.status === 'CRITICAL') {
+      return this.options.repository.setAttention(
+        runId,
+        'DISK_SPACE_CRITICAL',
+        'Telegram sending is blocked because disk space is critically low.',
+      );
+    }
     const attempt = this.options.repository.getLatestReminder(runId);
     if (!attempt || attempt.status !== 'DRAFT')
       throw new Error('Current reminder draft is unavailable or stale.');
@@ -442,6 +461,20 @@ export class Phase2WorkflowService {
 
   async approveAndSendFinal(runId: string): Promise<UpdateRunRecord> {
     const run = this.requiredRun(runId);
+    if (!this.options.repository.getSettings()?.telegramSendingEnabled) {
+      return this.options.repository.setAttention(
+        runId,
+        'TELEGRAM_SENDING_DISABLED',
+        'Telegram sending is disabled by the administrator kill switch.',
+      );
+    }
+    if ((await this.options.diskHealth?.())?.status === 'CRITICAL') {
+      return this.options.repository.setAttention(
+        runId,
+        'DISK_SPACE_CRITICAL',
+        'Final sending is blocked because disk space is critically low.',
+      );
+    }
     if (run.status !== 'READY_FOR_REVIEW' || run.previewState !== 'CURRENT') {
       throw new Error('Only a current READY_FOR_REVIEW preview can be approved.');
     }
@@ -595,6 +628,10 @@ export class Phase2WorkflowService {
     const token = run.actionClaimToken;
     if (!token) return;
     try {
+      if (!this.options.repository.getSettings()?.automationEnabled) {
+        this.options.repository.releaseClaim(run.id, token, new Date(Date.now() + 60_000));
+        return;
+      }
       if (run.nextActionType === 'RECHECK_MEMBERS') await this.recheck(run.id);
       this.options.repository.completeClaim(run.id, token);
     } catch (error) {
@@ -709,6 +746,27 @@ export class Phase2WorkflowService {
     const snapshotHash = computeSnapshotHash(snapshot);
     const blocking = warnings.some(({ severity }) => severity === 'BLOCKING');
     this.options.repository.discoverMembers(completion.members.map(({ caller }) => caller));
+
+    if ((await this.options.diskHealth?.())?.status === 'CRITICAL') {
+      const result: PreparedRunResult = {
+        structuralHealth,
+        completion,
+        warnings,
+        snapshotHash,
+      };
+      this.options.repository.savePreparedResult(
+        run.id,
+        result,
+        new Date(snapshot.fetchedAt),
+        'NEEDS_ATTENTION',
+      );
+      this.options.repository.setAttention(
+        run.id,
+        'DISK_SPACE_CRITICAL',
+        'New artifacts are blocked because disk space is critically low.',
+      );
+      return;
+    }
 
     if (blocking) {
       const result: PreparedRunResult = {

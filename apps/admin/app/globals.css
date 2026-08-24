@@ -101,6 +101,16 @@ button.danger {
   background: #fff4f2;
   color: var(--red);
 }
+.button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+}
+.subtle {
+  color: var(--muted);
+  font-size: 0.88rem;
+}
 button.secondary {
   border-color: #bdc9c0;
   background: #fff;
