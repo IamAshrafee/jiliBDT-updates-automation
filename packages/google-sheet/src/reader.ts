@@ -333,9 +333,13 @@ export class GoogleSheetReader {
 }
 
 export function safeGoogleError(error: unknown): string {
+  const message =
+    typeof error === 'object' && error !== null && 'message' in error ? String(error.message) : '';
   const status =
     typeof error === 'object' && error !== null && 'code' in error ? String(error.code) : undefined;
-  if (status === '401') return 'Google authentication is invalid or expired.';
+  if (status === '401' || /invalid_grant/i.test(message)) {
+    return 'Google authentication is invalid or expired. Run pnpm google:auth to reconnect.';
+  }
   if (status === '403') return 'Google denied access to the configured spreadsheet.';
   if (status === '404') return 'The configured Google spreadsheet was not found.';
   return status

@@ -22,9 +22,11 @@
     "fixture:render": "tsx scripts/render-fixture.ts",
     "sheet:smoke": "tsx scripts/real-sheet-smoke.ts",
     "db:generate": "pnpm --filter @jilibdt/db generate",
-    "db:migrate": "pnpm --filter @jilibdt/db migrate",
+    "db:migrate": "tsx scripts/migrate-database.ts",
     "db:smoke": "tsx scripts/db-smoke.ts",
     "google:auth": "pnpm --filter @jilibdt/google-sheet auth",
+    "admin:password": "tsx scripts/admin-password.ts",
+    "artifacts:cleanup": "tsx scripts/cleanup-artifacts.ts",
     "playwright:install": "pnpm --filter @jilibdt/renderer exec playwright install chromium"
   },
   "devDependencies": {

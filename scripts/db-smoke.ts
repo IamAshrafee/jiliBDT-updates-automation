@@ -1,8 +1,11 @@
-import { createDatabase, RunRepository } from '@jilibdt/db';
+import { resolve } from 'node:path';
+import { loadConfig } from '@jilibdt/config';
+import { createDatabase, migrateDatabase, RunRepository } from '@jilibdt/db';
 
-const databaseUrl = process.env.DATABASE_URL;
-if (!databaseUrl) throw new Error('DATABASE_URL is required.');
-const database = createDatabase(databaseUrl);
+const root = resolve(import.meta.dirname, '..');
+const config = loadConfig({ cwd: root });
+const database = createDatabase(config.databaseUrl);
+migrateDatabase(database.db, resolve(root, 'packages/db/migrations'));
 const repository = new RunRepository(database.db);
 const reportDate = '2099-01-01';
 

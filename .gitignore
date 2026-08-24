@@ -8,6 +8,7 @@ data/*.json
 data/*.db
 data/*.db-shm
 data/*.db-wal
+data/*.enc
 
 # Telegram/session material reserved for later phases
 *.session

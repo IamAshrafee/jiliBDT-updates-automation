@@ -1,6 +1,6 @@
 # Google OAuth Setup
 
-Phase 1 uses OAuth user credentials with the read-only Google Sheets scope. Drive access is not requested because the application already knows the spreadsheet ID and does not need Drive discovery or revision APIs.
+The application uses OAuth user credentials with the read-only Google Sheets scope. Drive access is not requested because the application already knows the spreadsheet ID and does not need Drive discovery or revision APIs.
 
 ## Create the credential file
 
@@ -22,6 +22,8 @@ pnpm google:auth
 The command opens Google's local consent flow and writes the returned token to `GOOGLE_OAUTH_TOKEN_PATH` with restricted file permissions where supported. A refresh token is required. The application merges refreshed access-token fields back into the token file without logging them.
 
 If Google does not return a refresh token, revoke the application's prior grant for this account and run authorization again. Also verify whether the OAuth consent screen is in a testing mode that limits refresh-token lifetime.
+
+If health reports `invalid_grant` or says authorization is expired, run `pnpm google:auth` again and complete the browser consent. The old token is replaced only after Google returns a new refresh token.
 
 ## VPS note for later phases
 

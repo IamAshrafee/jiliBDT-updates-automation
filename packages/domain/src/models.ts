@@ -8,15 +8,26 @@ export const RUN_STATUSES = [
   'CREATED',
   'PREPARING',
   'CHECKING_MEMBERS',
+  'WAITING_FOR_REMINDER_APPROVAL',
+  'REMINDER_SENDING',
+  'WAITING_FOR_MEMBERS',
+  'WAITING_FOR_ESCALATION_APPROVAL',
+  'ESCALATION_SENDING',
+  'GENERATING_PREVIEW',
   'READY_FOR_REVIEW',
+  'FINAL_APPROVED',
+  'REVALIDATING',
+  'SENDING',
+  'SENT',
   'NEEDS_ATTENTION',
   'FAILED',
   'CANCELLED',
+  'EXPIRED',
 ] as const;
 export const runStatusSchema = z.enum(RUN_STATUSES);
 export type RunStatus = z.infer<typeof runStatusSchema>;
 
-export const TRIGGER_SOURCES = ['DASHBOARD', 'API'] as const;
+export const TRIGGER_SOURCES = ['DASHBOARD', 'TELEGRAM_BOT', 'SCHEDULE', 'API'] as const;
 export const triggerSourceSchema = z.enum(TRIGGER_SOURCES);
 export type TriggerSource = z.infer<typeof triggerSourceSchema>;
 
@@ -167,3 +178,21 @@ export const createRunRequestSchema = z.object({
 });
 
 export const runIdParamsSchema = z.object({ id: z.uuid() });
+
+export const REMINDER_STAGES = ['INITIAL', 'ESCALATION'] as const;
+export const reminderStageSchema = z.enum(REMINDER_STAGES);
+export type ReminderStage = z.infer<typeof reminderStageSchema>;
+
+export const DELIVERY_KINDS = ['REMINDER', 'FINAL_REPORT', 'BOT_NOTIFICATION'] as const;
+export type DeliveryKind = (typeof DELIVERY_KINDS)[number];
+
+export const TELEGRAM_HEALTH_STATES = [
+  'CONNECTED',
+  'AUTH_REQUIRED',
+  'SESSION_EXPIRED',
+  'FLOOD_WAIT',
+  'PERMISSION_ERROR',
+  'DISCONNECTED',
+  'ERROR',
+] as const;
+export type TelegramHealthState = (typeof TELEGRAM_HEALTH_STATES)[number];

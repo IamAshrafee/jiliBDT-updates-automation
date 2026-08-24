@@ -1,0 +1,99 @@
+import type { RunStatus } from './models.js';
+
+const LEGAL_TRANSITIONS: Record<RunStatus, readonly RunStatus[]> = {
+  CREATED: ['PREPARING', 'CANCELLED', 'FAILED'],
+  PREPARING: ['CHECKING_MEMBERS', 'NEEDS_ATTENTION', 'FAILED', 'CANCELLED'],
+  CHECKING_MEMBERS: [
+    'WAITING_FOR_REMINDER_APPROVAL',
+    'WAITING_FOR_ESCALATION_APPROVAL',
+    'GENERATING_PREVIEW',
+    'WAITING_FOR_MEMBERS',
+    'NEEDS_ATTENTION',
+    'FAILED',
+    'CANCELLED',
+  ],
+  WAITING_FOR_REMINDER_APPROVAL: [
+    'PREPARING',
+    'REMINDER_SENDING',
+    'WAITING_FOR_MEMBERS',
+    'GENERATING_PREVIEW',
+    'NEEDS_ATTENTION',
+    'CANCELLED',
+  ],
+  REMINDER_SENDING: [
+    'WAITING_FOR_MEMBERS',
+    'WAITING_FOR_REMINDER_APPROVAL',
+    'GENERATING_PREVIEW',
+    'NEEDS_ATTENTION',
+    'FAILED',
+  ],
+  WAITING_FOR_MEMBERS: [
+    'CHECKING_MEMBERS',
+    'WAITING_FOR_ESCALATION_APPROVAL',
+    'GENERATING_PREVIEW',
+    'NEEDS_ATTENTION',
+    'CANCELLED',
+  ],
+  WAITING_FOR_ESCALATION_APPROVAL: [
+    'CHECKING_MEMBERS',
+    'ESCALATION_SENDING',
+    'WAITING_FOR_MEMBERS',
+    'GENERATING_PREVIEW',
+    'NEEDS_ATTENTION',
+    'CANCELLED',
+  ],
+  ESCALATION_SENDING: [
+    'WAITING_FOR_MEMBERS',
+    'WAITING_FOR_ESCALATION_APPROVAL',
+    'GENERATING_PREVIEW',
+    'NEEDS_ATTENTION',
+    'FAILED',
+  ],
+  GENERATING_PREVIEW: ['READY_FOR_REVIEW', 'NEEDS_ATTENTION', 'FAILED', 'CANCELLED'],
+  READY_FOR_REVIEW: ['PREPARING', 'FINAL_APPROVED', 'NEEDS_ATTENTION', 'CANCELLED'],
+  FINAL_APPROVED: ['REVALIDATING', 'READY_FOR_REVIEW', 'CANCELLED'],
+  REVALIDATING: [
+    'CHECKING_MEMBERS',
+    'SENDING',
+    'GENERATING_PREVIEW',
+    'READY_FOR_REVIEW',
+    'NEEDS_ATTENTION',
+    'FAILED',
+  ],
+  SENDING: ['SENT', 'NEEDS_ATTENTION', 'FAILED'],
+  SENT: [],
+  NEEDS_ATTENTION: [
+    'PREPARING',
+    'CHECKING_MEMBERS',
+    'WAITING_FOR_REMINDER_APPROVAL',
+    'WAITING_FOR_ESCALATION_APPROVAL',
+    'GENERATING_PREVIEW',
+    'READY_FOR_REVIEW',
+    'CANCELLED',
+    'FAILED',
+  ],
+  FAILED: ['PREPARING', 'NEEDS_ATTENTION', 'CANCELLED'],
+  CANCELLED: [],
+  EXPIRED: [],
+};
+
+export const TERMINAL_RUN_STATUSES: readonly RunStatus[] = [
+  'SENT',
+  'FAILED',
+  'CANCELLED',
+  'EXPIRED',
+];
+
+export function canTransition(from: RunStatus, to: RunStatus): boolean {
+  return from === to || LEGAL_TRANSITIONS[from].includes(to);
+}
+
+export function assertRunTransition(from: RunStatus, to: RunStatus): void {
+  if (!canTransition(from, to)) throw new Error(`Illegal run transition: ${from} -> ${to}`);
+}
+
+export function isTerminalRunStatus(status: RunStatus): boolean {
+  return TERMINAL_RUN_STATUSES.includes(status);
+}
+
+export { LEGAL_TRANSITIONS };

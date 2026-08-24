@@ -1,8 +1,6 @@
 # JiliBDT Updates Automation
 
-Phase 1 proves the critical path for safely preparing a selected Google Sheet update for administrator review. It reads values and effective formatting, validates the report structure, classifies caller submissions, renders an immutable HTML/PNG preview, and stores the run in one local SQLite file.
-
-This phase does **not** send reminders or reports to Telegram.
+Phase 2 is a deliberately simple, single-process operations tool. Its backend reads and validates the live Google Sheet, detects missing callers, prepares administrator-approved Telegram reminders, rechecks persistently, renders a final immutable report, invalidates stale approvals, and sends only after a fresh Sheet revalidation. State and audit history live in one local SQLite file.
 
 ## Requirements
 
@@ -44,7 +42,9 @@ Keep the **JiliBDT Backend** and **JiliBDT Admin** windows open while using the 
    pnpm dev:admin
    ```
 
-The backend automatically applies SQLite migrations to `DATABASE_URL` during startup. Open `http://127.0.0.1:3000`, enter the configured administrator token, choose a slot, and select **Prepare**.
+The backend automatically applies SQLite migrations to `DATABASE_URL` during startup. Open `http://127.0.0.1:3000`, sign in with `ADMIN_USERNAME` and the password represented by `ADMIN_PASSWORD_HASH` (the legacy token remains a local fallback), then choose a slot and select **Prepare**.
+
+Telegram is optional at startup. Configure one user account with `TELEGRAM_API_ID`, `TELEGRAM_API_HASH`, and `TELEGRAM_SESSION_ENCRYPTION_KEY`, then complete the phone/code/2FA flow in Settings. Configure the administrator bot separately with `TELEGRAM_BOT_TOKEN` and `TELEGRAM_ADMIN_IDS`.
 
 ## Important commands
 
@@ -55,11 +55,12 @@ pnpm typecheck
 pnpm test
 pnpm build
 pnpm fixture:render
+pnpm artifacts:cleanup
 ```
 
 `pnpm db:migrate` remains available for explicit migration checks. The SQLite file, OAuth files, and generated artifacts are ignored by Git.
 
-## Phase 1 safety behavior
+## Core safety behavior
 
 - A numeric zero is a submitted value; a blank cell is not.
 - Expected headers are located rather than blindly assumed to be on row 3.
@@ -68,5 +69,9 @@ pnpm fixture:render
 - Two rapid Prepare requests for the same date and slot reuse one active run.
 - Artifacts are immutable revisions under `artifacts/<date>/run-<id>/...`.
 - API logs redact authentication/token-shaped fields and never log OAuth contents.
+- Reminder approval binds the exact caller targets and edited message; a fresh fetch invalidates it when targets changed.
+- Final approval binds the source snapshot, PNG, caption, and destinations; it always re-fetches before sending.
+- SQLite-backed delivery keys prevent duplicate sends, including partial multi-destination retries.
+- Scheduled and delayed actions are persisted and leased from SQLite, so restart recovery does not depend on timers.
 
-See [Phase 1 architecture](docs/phase-1-architecture.md), [Google authentication](docs/google-auth.md), [format support](docs/sheet-format-support.md), and [testing](docs/phase-1-testing.md).
+See [Phase 2 architecture](docs/phase-2-architecture.md), [run states](docs/run-state-machine.md), [Telegram account](docs/telegram-user-account.md), [administrator bot](docs/telegram-bot.md), [reminders](docs/reminder-workflow.md), [scheduler](docs/scheduler.md), [approval safety](docs/approval-and-idempotency.md), and [testing](docs/phase-2-testing.md).

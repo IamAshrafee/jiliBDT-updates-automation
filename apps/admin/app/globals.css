@@ -70,7 +70,8 @@ label {
 }
 input,
 select,
-button {
+button,
+textarea {
   min-height: 42px;
   border: 1px solid #bdc9c0;
   border-radius: 8px;
@@ -78,6 +79,11 @@ button {
   color: var(--ink);
   padding: 0 12px;
   font: inherit;
+}
+textarea {
+  min-height: 112px;
+  padding: 12px;
+  resize: vertical;
 }
 button {
   border-color: var(--green);
@@ -94,6 +100,173 @@ button.danger {
   border-color: #f0c8c3;
   background: #fff4f2;
   color: var(--red);
+}
+button.secondary {
+  border-color: #bdc9c0;
+  background: #fff;
+  color: var(--ink);
+}
+.app-header,
+.section-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+.app-header {
+  max-width: none;
+  margin-bottom: 18px;
+}
+.app-header h1 {
+  font-size: clamp(2rem, 5vw, 3rem);
+}
+.tabs {
+  display: flex;
+  gap: 7px;
+  overflow-x: auto;
+  margin-bottom: 20px;
+  padding-bottom: 5px;
+}
+.tabs button {
+  min-height: 36px;
+  flex: 0 0 auto;
+  border-color: var(--line);
+  background: #fff;
+  color: var(--muted);
+}
+.tabs button.active {
+  border-color: var(--green);
+  background: var(--green);
+  color: #fff;
+}
+.status-message,
+.muted {
+  color: var(--muted);
+}
+.health-grid,
+.slot-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  margin-bottom: 26px;
+}
+.health-grid article {
+  display: grid;
+  gap: 7px;
+}
+.health-grid span,
+.mini-metrics span {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+.slot-card {
+  display: grid;
+  align-content: start;
+  gap: 11px;
+}
+.run-status {
+  color: var(--green);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+.mini-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 7px;
+}
+.mini-metrics span {
+  display: grid;
+  gap: 4px;
+  padding: 9px;
+  border-radius: 7px;
+  background: #f4f7f5;
+}
+.reminder {
+  display: grid;
+  gap: 13px;
+  margin: 18px 0;
+}
+.error-text {
+  color: var(--red);
+}
+.member-list {
+  display: grid;
+  margin-top: 18px;
+}
+.member-row,
+.schedule-row {
+  display: grid;
+  grid-template-columns: 1.1fr repeat(3, 1fr) auto auto;
+  gap: 9px;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+.member-row > div {
+  display: grid;
+  gap: 5px;
+}
+.badge {
+  width: fit-content;
+  border-radius: 999px;
+  padding: 3px 7px;
+  background: #eef2ef;
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+.badge.mapped {
+  background: var(--green-soft);
+  color: var(--green);
+}
+.badge.needs_review,
+.badge.unmapped {
+  background: #fff3df;
+  color: var(--amber);
+}
+label.check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+label.check input {
+  min-height: auto;
+}
+.schedule-row {
+  grid-template-columns: 1fr auto 130px 1fr 1fr auto;
+}
+.timeline {
+  display: grid;
+  grid-template-columns: 170px 1fr;
+  gap: 14px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+.timeline time {
+  color: var(--muted);
+  font-size: 0.76rem;
+}
+.timeline p {
+  margin: 4px 0 0;
+  color: var(--muted);
+}
+.login-page {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+}
+.login-card {
+  display: grid;
+  width: min(420px, 100%);
+  gap: 16px;
+}
+.table-scroll {
+  overflow-x: auto;
+}
+pre {
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 .message {
   grid-column: 1/-1;
@@ -219,7 +392,9 @@ tbody tr:hover {
     padding-top: 24px;
   }
   .controls,
-  .detail-grid {
+  .detail-grid,
+  .health-grid,
+  .slot-grid {
     grid-template-columns: 1fr;
   }
   .metrics {
@@ -234,5 +409,13 @@ tbody tr:hover {
   }
   .history {
     overflow-x: auto;
+  }
+  .member-row,
+  .schedule-row {
+    grid-template-columns: 1fr;
+  }
+  .timeline {
+    grid-template-columns: 1fr;
+    gap: 4px;
   }
 }
