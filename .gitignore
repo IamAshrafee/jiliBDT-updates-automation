@@ -1,0 +1,30 @@
+# Environment and secrets
+.env
+.env.*
+!.env.example
+data/credentials.json
+data/token.json
+data/*.json
+data/*.db
+data/*.db-shm
+data/*.db-wal
+
+# Telegram/session material reserved for later phases
+*.session
+*.session-journal
+
+# Generated output
+artifacts/
+node_modules/
+.next/
+dist/
+coverage/
+*.tsbuildinfo
+playwright-report/
+test-results/
+
+# Local tooling
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

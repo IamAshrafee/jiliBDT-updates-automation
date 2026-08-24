@@ -1,0 +1,238 @@
+:root {
+  color-scheme: light;
+  --ink: #17211b;
+  --muted: #637067;
+  --line: #dce4de;
+  --green: #176b45;
+  --green-soft: #e9f5ee;
+  --red: #b42318;
+  --amber: #b25e09;
+}
+* {
+  box-sizing: border-box;
+}
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  background: #f6f8f6;
+  color: var(--ink);
+  font-family: Arial, Helvetica, sans-serif;
+}
+body {
+  background-image: radial-gradient(circle at 20% 0, #e7f3eb 0, transparent 32rem);
+}
+main {
+  width: min(1180px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 48px 0 80px;
+}
+header {
+  max-width: 760px;
+  margin-bottom: 30px;
+}
+h1 {
+  margin: 6px 0 10px;
+  font-size: clamp(2rem, 5vw, 3.6rem);
+  line-height: 1;
+  letter-spacing: -0.04em;
+}
+h2,
+h3,
+p {
+  margin-top: 0;
+}
+.eyebrow {
+  color: var(--green);
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.13em;
+}
+.panel {
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 20px;
+  box-shadow: 0 8px 26px rgba(31, 55, 41, 0.06);
+}
+.controls {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 14px;
+  align-items: end;
+}
+label {
+  display: grid;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+input,
+select,
+button {
+  min-height: 42px;
+  border: 1px solid #bdc9c0;
+  border-radius: 8px;
+  background: #fff;
+  color: var(--ink);
+  padding: 0 12px;
+  font: inherit;
+}
+button {
+  border-color: var(--green);
+  background: var(--green);
+  color: #fff;
+  font-weight: 750;
+  cursor: pointer;
+}
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+button.danger {
+  border-color: #f0c8c3;
+  background: #fff4f2;
+  color: var(--red);
+}
+.message {
+  grid-column: 1/-1;
+  margin: 0;
+  color: var(--muted);
+}
+.run-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  align-items: center;
+  margin-top: 22px;
+}
+.run-heading h2 {
+  margin-bottom: 7px;
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin: 16px 0;
+}
+.metric {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 17px;
+  border-radius: 12px;
+  background: #fff;
+  border-left: 5px solid #829188;
+}
+.metric strong {
+  font-size: 1.75rem;
+}
+.metric.complete {
+  border-color: var(--green);
+}
+.metric.missing {
+  border-color: var(--red);
+}
+.metric.exempt {
+  border-color: #16859a;
+}
+.metric.unknown {
+  border-color: var(--amber);
+}
+.detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.detail-grid ul {
+  padding-left: 20px;
+}
+.detail-grid li {
+  margin: 8px 0;
+  line-height: 1.4;
+}
+.hash {
+  font-family: monospace;
+  font-size: 0.72rem;
+  overflow-wrap: anywhere;
+  color: var(--muted);
+}
+.error {
+  margin-top: 16px;
+  border-color: #f3b7af;
+  color: var(--red);
+}
+.preview {
+  margin: 28px 0;
+}
+.image-shell {
+  max-height: 78vh;
+  overflow: auto;
+  background: #dfe4e0;
+  border: 1px solid #ccd4ce;
+  padding: 12px;
+}
+.image-shell img {
+  display: block;
+  width: 100%;
+  min-width: 900px;
+  height: auto;
+  background: #fff;
+}
+.history {
+  margin-top: 28px;
+}
+.history-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.history-title button {
+  min-height: 34px;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+th,
+td {
+  text-align: left;
+  padding: 11px;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.88rem;
+}
+tbody tr {
+  cursor: pointer;
+}
+tbody tr:hover {
+  background: var(--green-soft);
+}
+@media (max-width: 760px) {
+  main {
+    width: min(100% - 20px, 1180px);
+    padding-top: 24px;
+  }
+  .controls,
+  .detail-grid {
+    grid-template-columns: 1fr;
+  }
+  .metrics {
+    grid-template-columns: 1fr 1fr;
+  }
+  .run-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .controls .message {
+    grid-column: auto;
+  }
+  .history {
+    overflow-x: auto;
+  }
+}

@@ -1,0 +1,34 @@
+import { createDatabase, RunRepository } from '@jilibdt/db';
+
+const databaseUrl = process.env.DATABASE_URL;
+if (!databaseUrl) throw new Error('DATABASE_URL is required.');
+const database = createDatabase(databaseUrl);
+const repository = new RunRepository(database.db);
+const reportDate = '2099-01-01';
+
+try {
+  database.sqlite.prepare('delete from update_runs where report_date = ?').run(reportDate);
+  const input = {
+    reportDate,
+    updateSlot: 'UPDATE_1' as const,
+    triggerSource: 'API' as const,
+    sourceSpreadsheet: 'db-smoke-fixture',
+    sourceWorksheet: 'Fixture',
+    sourceRange: 'A1:H46',
+  };
+  const first = repository.createOrGetActive(input);
+  const second = repository.createOrGetActive(input);
+  if (!first.created || second.created || first.run.id !== second.run.id) {
+    throw new Error('Double prepare did not reuse the active run.');
+  }
+  const forced = repository.createOrGetActive({ ...input, forceNew: true });
+  if (!forced.created || forced.run.id === first.run.id) {
+    throw new Error('Explicit force-new did not replace the active run.');
+  }
+  process.stdout.write(
+    `${JSON.stringify({ migration: 'ok', doublePrepare: 'reused', forceNew: 'replaced' })}\n`,
+  );
+} finally {
+  database.sqlite.prepare('delete from update_runs where report_date = ?').run(reportDate);
+  database.sqlite.close();
+}

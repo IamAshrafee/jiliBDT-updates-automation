@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>WFH BD02 Revisit Daily Report - Google Sheets Style Mock</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    /* Colors tuned against the supplied Google Sheets screenshot */
+    --grid: #747474;
+    --sheet-grid: #d9d9d9;
+    --sheet-header: #f3f3f3;
+    --title-green: #93c47d;
+    --update-red: #e07c6d;
+    --header-gray: #b7b7b7;
+    --leader-green: #d8ead2;
+    --day-off: #00ffff;
+    --total-yellow: #ffff00;
+    --total-red: #ff0000;
+    --white: #ffffff;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: #ffffff;
+    color: #111;
+    font-family: "Lexend", Arial, Helvetica, sans-serif;
+  }
+
+  /* No decorative padding/shadow: the output should look like a real sheet capture. */
+  .sheet-shell {
+    width: 1265px;
+    background: #fff;
+    overflow: hidden;
+  }
+
+  table {
+    border-collapse: collapse;
+    table-layout: fixed;
+    width: 1265px;
+    font-family: "Lexend", Arial, Helvetica, sans-serif;
+    font-size: 12px;
+    line-height: 1;
+    font-weight: 700;
+  }
+
+  /* Widths matched to the supplied screenshot proportions. */
+  col.rownum { width: 40px; }
+  col.col-a  { width: 152px; }
+  col.col-b  { width: 150px; }
+  col.col-c  { width: 151px; }
+  col.col-d  { width: 151px; }
+  col.col-e  { width: 168px; }
+  col.col-f  { width: 152px; }
+  col.col-g  { width: 150px; }
+  col.col-h  { width: 151px; }
+
+  td, th {
+    padding: 0 5px;
+    height: 23px;
+    border: 1px solid var(--grid);
+    text-align: center;
+    vertical-align: middle;
+    white-space: nowrap;
+    overflow: hidden;
+    font-weight: 700;
+  }
+
+  /* Google Sheets row/column headers */
+  .corner,
+  .column-letter,
+  .row-number {
+    background: var(--sheet-header);
+    color: #5f6368;
+    font-weight: 400;
+    border-color: var(--sheet-grid);
+    font-family: Arial, Helvetica, sans-serif;
+  }
+
+  .corner,
+  .column-letter {
+    height: 20px;
+  }
+
+  .column-letter {
+    font-size: 10px;
+  }
+
+  .row-number {
+    width: 40px;
+    height: 23px;
+    padding: 0 8px 0 2px;
+    font-size: 9px;
+    text-align: right;
+    border-right-color: #c6c6c6;
+  }
+
+  .title {
+    background: var(--title-green);
+    height: 23px;
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: .05px;
+  }
+
+  .update-date {
+    background: var(--update-red);
+    height: 22px;
+    font-size: 12px;
+    font-weight: 800;
+  }
+
+  .header {
+    background: var(--header-gray);
+    height: 24px;
+    font-size: 12px;
+    font-weight: 800;
+  }
+
+  .leader {
+    background: var(--leader-green);
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: .1px;
+  }
+
+  .caller,
+  .status,
+  .remarks {
+    font-size: 12px;
+    font-weight: 800;
+  }
+
+  .number {
+    font-size: 11px;
+    font-weight: 700;
+  }
+
+  /* Bold/high-emphasis numbers, closely matching the source sheet. */
+  .number.strong { font-weight: 800; }
+
+  .dayoff td.data-cell,
+  .dayoff .remarks {
+    background: var(--day-off);
+    font-weight: 800;
+  }
+
+  .total td.data-cell,
+  .total .leader-total {
+    background: var(--total-yellow);
+    color: var(--total-red);
+    font-size: 12px;
+    font-weight: 800;
+    height: 23px;
+  }
+
+  /* Keep rendering crisp when Chromium captures the report. */
+  @media print {
+    html, body { width: 1265px; }
+  }
+</style>
+</head>
+<body>
+<div class="sheet-shell" id="report">
+  <table aria-label="WFH BD02 Revisit Daily Report">
+    <colgroup>
+      <col class="rownum">
+      <col class="col-a"><col class="col-b"><col class="col-c"><col class="col-d">
+      <col class="col-e"><col class="col-f"><col class="col-g"><col class="col-h">
+    </colgroup>
+    <thead>
+      <tr>
+        <th class="corner"></th>
+        <th class="column-letter">A</th><th class="column-letter">B</th><th class="column-letter">C</th><th class="column-letter">D</th>
+        <th class="column-letter">E</th><th class="column-letter">F</th><th class="column-letter">G</th><th class="column-letter">H</th>
+      </tr>
+    </thead>
+    <tbody id="sheet-body"></tbody>
+  </table>
+</div>
+
+<script>
+  const names = [
+    'HAROLD','HOWARD','HASAN','AVEN','SHEIKAH','KILLUA','SHIFU','JOSO','TREVOR','SUKUNA','NIKO','ANUKIA','NICK','NEXORA','YAKUZA','KAIRA','TRUMP','YOKAI','DANGER','MOON','MARTIN','SHINCHAN','FLEXO','RUGAL','TYZO','HINATA','LEVIT','PENNY','RABIB','JAIME','FLOWER','TITAN','LOKI','DAZAI','HOLLY','ZENITH','BULL','BEAUTIFUL','IZUKU','JEMS','ENOLA','KATE'
+  ];
+
+  const dayOffIndexes = new Set([2, 12, 13, 17, 26, 27, 28, 38]);
+
+  // Dummy values intentionally mirror the visual proportions of the supplied sample.
+  const consumed = [205,205,0,100,205,125,90,50,50,120,56,70,0,0,65,206,206,0,200,206,103,206,112,60,50,206,0,0,0,162,68,70,206,105,114,206,206,100,0,63,180,157];
+  const contacts = [50,140,0,80,42,56,44,22,26,69,45,44,0,0,43,40,116,0,88,52,78,74,88,29,41,137,0,0,0,102,51,55,122,62,83,80,127,80,0,50,127,107];
+  const ftd      = [2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,1,0,0,0,1,1,0,0,0,0,0,0];
+  const amount   = [250,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,108,0,0,0,0,0,0,200,0,0,0,1000,200,0,0,0,0,0,0];
+
+  const tbody = document.getElementById('sheet-body');
+
+  function addRow(html) {
+    tbody.insertAdjacentHTML('beforeend', html);
+  }
+
+  addRow(`
+    <tr>
+      <td class="row-number">1</td>
+      <td class="title" colspan="8">WFH BD02 REVISIT DAILY REPORT</td>
+    </tr>`);
+
+  addRow(`
+    <tr>
+      <td class="row-number">2</td>
+      <td class="update-date" colspan="8">AUG 24, 2026 1ST UPDATE</td>
+    </tr>`);
+
+  addRow(`
+    <tr>
+      <td class="row-number">3</td>
+      <td class="header">WFH HEAD TL</td>
+      <td class="header">CALLER</td>
+      <td class="header">MEMBER STATUS</td>
+      <td class="header">REMARKS</td>
+      <td class="header">TOTAL CONSUMED</td>
+      <td class="header">CONTACT ADDED</td>
+      <td class="header">FTD</td>
+      <td class="header">FTD AMOUNT</td>
+    </tr>`);
+
+  names.forEach((name, i) => {
+    const rowNum = i + 4;
+    const off = dayOffIndexes.has(i);
+    const leaderCell = i === 0 ? `<td class="leader" rowspan="42">YUKIRA</td>` : '';
+    const emphasis = ftd[i] > 0 || amount[i] > 0 || [21,22].includes(i) ? 'strong' : '';
+
+    addRow(`
+      <tr class="${off ? 'dayoff' : ''}">
+        <td class="row-number">${rowNum}</td>
+        ${leaderCell}
+        <td class="data-cell caller">${name}</td>
+        <td class="data-cell status">PERMANENT</td>
+        <td class="data-cell remarks">${off ? 'DAY OFF' : 'ACTIVE'}</td>
+        <td class="data-cell number ${emphasis}">${consumed[i]}</td>
+        <td class="data-cell number ${emphasis}">${contacts[i]}</td>
+        <td class="data-cell number strong">${ftd[i]}</td>
+        <td class="data-cell number strong">${amount[i]}</td>
+      </tr>`);
+  });
+
+  const activeCount = names.length - dayOffIndexes.size;
+  const sum = arr => arr.reduce((a,b) => a+b, 0);
+
+  addRow(`
+    <tr class="total">
+      <td class="row-number">46</td>
+      <td class="leader-total">1</td>
+      <td class="data-cell">${names.length}</td>
+      <td class="data-cell">${names.length}</td>
+      <td class="data-cell">${activeCount}</td>
+      <td class="data-cell">${sum(consumed)}</td>
+      <td class="data-cell">${sum(contacts)}</td>
+      <td class="data-cell">${sum(ftd)}</td>
+      <td class="data-cell">${sum(amount)}</td>
+    </tr>`);
+</script>
+</body>
+</html>

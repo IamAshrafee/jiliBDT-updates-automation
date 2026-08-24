@@ -1,0 +1,41 @@
+{
+  "name": "jilibdt-updates-automation",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Human-supervised Google Sheet update preparation for JiliBDT.",
+  "packageManager": "pnpm@11.22.0",
+  "engines": {
+    "node": ">=24 <25",
+    "pnpm": ">=11 <12"
+  },
+  "scripts": {
+    "build": "pnpm --filter=./packages/** -r build && pnpm --filter @jilibdt/server build && pnpm --filter @jilibdt/admin build",
+    "dev:server": "pnpm --filter @jilibdt/server dev",
+    "dev:admin": "pnpm --filter @jilibdt/admin dev",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "eslint .",
+    "typecheck": "pnpm -r typecheck",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "fixture:render": "tsx scripts/render-fixture.ts",
+    "sheet:smoke": "tsx scripts/real-sheet-smoke.ts",
+    "db:generate": "pnpm --filter @jilibdt/db generate",
+    "db:migrate": "pnpm --filter @jilibdt/db migrate",
+    "db:smoke": "tsx scripts/db-smoke.ts",
+    "google:auth": "pnpm --filter @jilibdt/google-sheet auth",
+    "playwright:install": "pnpm --filter @jilibdt/renderer exec playwright install chromium"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.2",
+    "@types/node": "^24.10.1",
+    "eslint": "^9.39.2",
+    "prettier": "^3.9.0",
+    "tsup": "^8.5.1",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.67.0",
+    "vitest": "^4.1.11"
+  }
+}

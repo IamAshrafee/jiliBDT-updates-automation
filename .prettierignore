@@ -1,0 +1,9 @@
+node_modules
+dist
+.next
+apps/admin/next-env.d.ts
+*.cmd
+artifacts
+pnpm-lock.yaml
+google_sheet_report_mock.html
+references/google_sheet_report_mock.html
